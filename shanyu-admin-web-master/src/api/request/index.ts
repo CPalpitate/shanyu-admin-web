@@ -101,10 +101,8 @@ service.interceptors.response.use(
     (error) => {
         console.error('响应拦截器错误:', error)
 
-        const message = useMessage()
-
         // 网络错误
-        if (error.code === 'NETWORK_ERROR') {
+        if (error.code === 'ERR_NETWORK') {
             message.error('网络连接失败，请检查网络设置')
             return Promise.reject(error)
         }
