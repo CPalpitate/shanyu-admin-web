@@ -1,7 +1,12 @@
 <template>
   <div class="p-6 flex flex-col gap-4">
     <h1 class="text-2xl font-bold">代码生成</h1>
-    <data-list :columns="columns" :fetch-data="fetchData" />
+    <data-list
+      :columns="columns"
+      :fetch-data="fetchData"
+      search-label="库名/表名"
+    />
+
   </div>
 </template>
 
