@@ -1,0 +1,27 @@
+/**
+ * 全局样式入口文件
+ */
+
+// 导入各模块样式
+@use './scrollbar';
+@use './transition.scss';
+@use './reset.scss';
+@use './selection.scss';
+
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+.color-weak {
+  filter: invert(80%);
+}
+
+.gray-mode {
+  filter: grayscale(100%);
+}
+
+.drag-handle {
+  cursor: move;
+}
