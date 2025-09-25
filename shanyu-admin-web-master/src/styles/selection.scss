@@ -1,0 +1,104 @@
+// 文本选中全局优化
+@mixin text-selection {
+  background: rgba(30, 128, 255, 0.15) !important;
+  color: inherit !important;
+  text-shadow: none !important;
+  padding: 0.1em 0 !important;
+  margin: -0.1em 0 !important;
+  border-radius: 2px !important;
+  line-height: 1.3 !important;
+}
+
+// 输入框全局优化
+@mixin input-optimization {
+  --n-height: 36px !important;
+  --n-padding-top: 8px !important;
+  --n-padding-bottom: 8px !important;
+
+  .n-input__input-el {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    line-height: 1.4 !important;
+  }
+}
+
+// 深色模式适配
+@mixin dark-mode-selection {
+  background: rgba(64, 158, 255, 0.2) !important;
+
+  .n-input .n-input__input-el::selection {
+    background: rgba(64, 158, 255, 0.15) !important;
+  }
+}
+
+/* ================= 全局应用 ================= */
+// 基础选中样式
+::selection {
+  @include text-selection;
+}
+
+// 输入框选中优化
+.n-input .n-input__input-el::selection {
+  @include text-selection;
+  background: rgba(30, 128, 255, 0.1) !important;
+  padding: 0.05rem 0 !important;
+  margin: -0.05rem 0 !important;
+}
+
+// 文本区域选中优化
+textarea::selection,
+.n-input.n-input--textarea .n-input__textarea-el::selection {
+  @include text-selection;
+  background: rgba(30, 128, 255, 0.1) !important;
+  padding: 0.1rem 0 !important;
+  margin: -0.1rem 0 !important;
+}
+
+// 按钮选中优化
+.n-button::selection {
+  @include text-selection;
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+// 标签和标题选中优化
+.n-form-item-label::selection,
+.n-card-header__main::selection,
+h1::selection, h2::selection, h3::selection, h4::selection, h5::selection, h6::selection {
+  @include text-selection;
+  background: rgba(30, 128, 255, 0.1) !important;
+}
+
+// 表格选中优化
+.n-data-table td::selection,
+.n-data-table th::selection {
+  @include text-selection;
+  background: rgba(30, 128, 255, 0.1) !important;
+}
+
+// 输入框整体优化
+.n-input {
+  @include input-optimization;
+}
+
+// 按钮高度优化
+.n-button {
+  --n-height-medium: 36px !important;
+}
+
+// 深色模式适配
+.dark-mode,
+[data-theme="dark"],
+.n-config-provider--dark {
+  &, & *::selection {
+    @include dark-mode-selection;
+  }
+}
+
+// 媒体查询深色模式
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    &, & *::selection {
+      @include dark-mode-selection;
+    }
+  }
+}
