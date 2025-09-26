@@ -58,8 +58,8 @@ const menuOptions: MenuOption[] = [
     icon: renderIcon('bx:cog'),
     children: [
       { label: '代码生成', key: '/settings/codegen', icon: renderIcon('mdi:code-tags') },
-      { label: '菜单管理', key: '/settings/authority/menu', icon: renderIcon('mdi:list-box-outline') },
-      { label: '角色管理', key: '/settings/authority/role', icon: renderIcon('mdi:account-details-outline') },
+      { label: '菜单管理', key: '/settings/menu', icon: renderIcon('mdi:list-box-outline') },
+      { label: '角色管理', key: '/settings/role', icon: renderIcon('mdi:account-details-outline') },
     ]
   },
 ]
