@@ -83,7 +83,7 @@ function transformSingleRoute(route: MenuRoute): RouteRecordRaw | null {
         record.redirect = route.redirect
     }
 
-    const children = transformMenuRoutes(route.children || [])
+    const children = transformMenuRoutes(route.children || [], false)
     if (children.length) {
         record.children = children
     }
@@ -100,13 +100,54 @@ function transformSingleRoute(route: MenuRoute): RouteRecordRaw | null {
  * 批量转换后端返回的菜单路由
  * 会根据 orderNum 排序，同时移除空节点
  */
-export function transformMenuRoutes(routes: MenuRoute[]): RouteRecordRaw[] {
+export function transformMenuRoutes(routes: MenuRoute[], isRoot = true): RouteRecordRaw[] {
     if (!routes?.length) return []
-    return routes
+
+    const records = routes
         .slice()
         .sort((a, b) => orderSorter(a.orderNum, b.orderNum))
-        .map(transformSingleRoute)
+        .map((route) => transformSingleRoute(route))
         .filter((r): r is RouteRecordRaw => !!r)
+
+    if (!isRoot) {
+        return records
+    }
+
+    const hasRoot = records.some((route) => route.path === '/' || route.name === 'Layout')
+    if (hasRoot) {
+        return records
+    }
+
+    const redirect = findFirstNavigablePath(records)
+
+    const layoutRoute: RouteRecordRaw = {
+        path: '/',
+        name: 'Layout',
+        component: layoutComponent as RouteRecordRaw['component'],
+        redirect,
+        children: records,
+    }
+
+    return [layoutRoute]
+}
+
+function findFirstNavigablePath(routes: RouteRecordRaw[], parentPath = ''): string | undefined {
+    for (const route of routes) {
+        if (typeof route.redirect === 'string') {
+            return route.redirect
+        }
+        const currentPath = resolveFullPath(parentPath, route.path)
+        if (!route.children?.length && route.component) {
+            return currentPath
+        }
+        if (route.children?.length) {
+            const childPath = findFirstNavigablePath(route.children, currentPath)
+            if (childPath) {
+                return childPath
+            }
+        }
+    }
+    return undefined
 }
 
 /**
