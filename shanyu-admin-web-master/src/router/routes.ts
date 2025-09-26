@@ -103,13 +103,13 @@ export const asyncRoutes: RouteRecordRaw[] = [
                     {
                         path: 'menu',
                         name: 'Menu',
-                        component: () => import('@/views/settings/authority/menu/index.vue'),
+                        component: () => import('@/views/settings/menu/index.vue'),
                         meta: {title: '菜单管理'}
                     },
                     {
                         path: 'role',
                         name: 'Role',
-                        component: () => import('@/views/settings/authority/role/index.vue'),
+                        component: () => import('@/views/settings/role/index.vue'),
                         meta: {title: '角色管理'}
                     }
                 ]

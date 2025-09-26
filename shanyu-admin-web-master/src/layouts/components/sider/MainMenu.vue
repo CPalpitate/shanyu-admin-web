@@ -14,10 +14,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, h } from 'vue'
+import { ref, watch, h, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { type MenuOption, NIcon } from 'naive-ui'
 import { Icon } from '@iconify/vue'
+import { usePermissionStore } from '@/store'
+import { asyncRoutes } from '@/router/routes'
+import { resolveSidebarRoutes, resolveFullPath } from '@/router/utils/transform'
+import type { RouteRecordRaw } from 'vue-router'
 
 /**
  * 说明（推荐方案逻辑）：
@@ -41,28 +45,20 @@ const activeKey = ref('')
 const expandedKeys = ref<string[]>([])
 
 /* ---------------- 菜单数据 ---------------- */
-const menuOptions: MenuOption[] = [
-  {
-    label: 'Dashboard', // 菜单显示名称
-    key: '/dashboard',  // 路由路径
-    icon: renderIcon('bx:atom'), // 菜单图标
-  },
-  {
-    label: '用户管理',
-    key: '/users',
-    icon: renderIcon('bx:user'),
-  },
-  {
-    label: '系统设置',
-    key: '/settings',
-    icon: renderIcon('bx:cog'),
-    children: [
-      { label: '代码生成', key: '/settings/codegen', icon: renderIcon('mdi:code-tags') },
-      { label: '菜单管理', key: '/settings/authority/menu', icon: renderIcon('mdi:list-box-outline') },
-      { label: '角色管理', key: '/settings/authority/role', icon: renderIcon('mdi:account-details-outline') },
-    ]
-  },
-]
+// Pinia 权限 store：在动态模式下提供后端返回的路由树
+const permissionStore = usePermissionStore()
+
+// 当 auth mode=static 时，提前解析本地的异步路由作为兜底菜单
+const staticMenuRoutes = resolveSidebarRoutes(asyncRoutes)
+
+// 根据当前模式（动态 / 静态）实时生成 n-menu 所需的 options
+const menuOptions = computed<MenuOption[]>(() => {
+  const routesSource: RouteRecordRaw[] =
+    import.meta.env.VITE_AUTH_MODE === 'dynamic'
+      ? permissionStore.sidebarRoutes
+      : staticMenuRoutes
+  return buildMenuOptions(routesSource)
+})
 
 /* ---------------- 事件处理：点击与展开 ---------------- */
 
@@ -85,29 +81,36 @@ function updateExpandedKeys(val: string[]) {
 /* ---------------- 路由联动：自动高亮 & 自动展开 ---------------- */
 
 watch(
-    () => route.path,
-    (path) => {
-      // 高亮：优先精确匹配；否则回退到最近的父级 key
-      activeKey.value = getBestMatchKey(path) || path
+  [() => route.path, () => menuOptions.value],
+  ([path]) => {
+    const tree = menuOptions.value
+    if (!tree.length) {
+      activeKey.value = ''
+      expandedKeys.value = []
+      return
+    }
 
-      // 计算并设置需要展开的父级链
-      const key = getBestMatchKey(path)
-      if (!key) {
-        expandedKeys.value = []
-        return
-      }
-      const chain = findKeyPath(menuOptions, key)
-      if (!chain.length) {
-        expandedKeys.value = []
-        return
-      }
-      const last = chain[chain.length - 1]
-      const lastOpt = getOptionByKey(menuOptions, last)
-      const parents = chain.slice(0, -1)
-      // 如果当前命中的是一个父级（带 children），也把它自身加入展开，确保能看到子项
-      expandedKeys.value = lastOpt?.children?.length ? [...parents, last] : parents
-    },
-    { immediate: true }
+    const bestKey = getBestMatchKey(tree, path) || path
+    activeKey.value = bestKey
+
+    const key = getBestMatchKey(tree, path)
+    if (!key) {
+      expandedKeys.value = []
+      return
+    }
+
+    const chain = findKeyPath(tree, key)
+    if (!chain.length) {
+      expandedKeys.value = []
+      return
+    }
+
+    const last = chain[chain.length - 1]
+    const lastOpt = getOptionByKey(tree, last)
+    const parents = chain.slice(0, -1)
+    expandedKeys.value = lastOpt?.children?.length ? [...parents, last] : parents
+  },
+  { immediate: true, deep: true }
 )
 
 /* ---------------- 工具方法：通用查找与匹配 ---------------- */
@@ -139,12 +142,12 @@ function findKeyPath(tree: MenuOption[], targetKey: string): string[] {
 }
 
 /** 精确命中优先；否则找“前缀父级”（如 /a/b 的父是 /a） */
-function getBestMatchKey(path: string): string | null {
-  if (findKeyPath(menuOptions, path).length) return path
+function getBestMatchKey(tree: MenuOption[], path: string): string | null {
+  if (findKeyPath(tree, path).length) return path
   const segs = path.split('/').filter(Boolean)
   while (segs.length) {
     const candidate = '/' + segs.join('/')
-    if (findKeyPath(menuOptions, candidate).length) return candidate
+    if (findKeyPath(tree, candidate).length) return candidate
     segs.pop()
   }
   return null
@@ -160,5 +163,53 @@ function getOptionByKey(tree: MenuOption[], targetKey: string): MenuOption | nul
     }
   }
   return null
+}
+
+/**
+ * 将路由记录转换成 n-menu 可识别的 options
+ * @param routes 当前层级的路由数组
+ * @param basePath 父级路径，递归时用于拼接完整路径
+ */
+function buildMenuOptions(routes: RouteRecordRaw[], basePath = ''): MenuOption[] {
+  if (!routes?.length) return []
+  return routes
+    .slice()
+    .sort((a, b) => orderSorter(a.meta?.order as number | undefined, b.meta?.order as number | undefined))
+    .flatMap((route) => {
+      const meta = route.meta || {}
+      const hidden = meta.hidden === true
+      const currentPath = resolveFullPath(basePath, route.path)
+      const children = buildMenuOptions(route.children || [], currentPath)
+
+      // 如果当前路由本身被隐藏，则直接返回其子菜单（常用于 detail 页面）
+      if (hidden) {
+        return children
+      }
+
+      const label = (meta.title as string) || (children.length ? currentPath : '')
+      if (!label) {
+        return children
+      }
+
+      const option: MenuOption = {
+        label,
+        key: currentPath,
+      }
+
+      const icon = meta.icon as string | undefined
+      if (icon) {
+        option.icon = renderIcon(icon)
+      }
+
+      if (children.length) {
+        option.children = children
+      }
+
+      return [option]
+    })
+}
+
+function orderSorter(a?: number, b?: number) {
+  return (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER)
 }
 </script>

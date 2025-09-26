@@ -1,6 +1,7 @@
-import { computed } from 'vue'
+import { computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth.ts'
+import { usePermissionStore } from '@/store/permission'
 import { message } from '@/utils/message'
 import type { LoginParams } from '@/api/types'
 
@@ -19,6 +20,8 @@ export function useAuth() {
 
   // Vue Router 实例
   const router = useRouter()
+  // 权限 store，负责维护当前用户的权限码集合 & 动态路由
+  const permissionStore = usePermissionStore()
 
   /**
    * 当前用户信息
@@ -58,6 +61,7 @@ export function useAuth() {
    * 清空认证状态并跳转到登录页
    */
   const logout = async () => {
+    // 触发 Pinia store 的退出逻辑，内部会清理 token、权限以及动态路由
     await store.logout()
     message.success('已退出登录')
     await nextTick()
@@ -84,27 +88,27 @@ export function useAuth() {
 
   /**
    * 当前用户权限码数组
-   * 从 user.perms 派生（响应式）
+   * 从 permission store 派生（响应式）
    */
-  const perms = computed(() => store.roles || [])
+  const perms = computed(() => Array.from(permissionStore.permissionSet))
 
   /**
    * 判断是否拥有指定权限
    * @param perm 权限码
    */
-  const hasPerm = (perm: string) => perms.value.includes(perm)
+  const hasPerm = (perm: string) => permissionStore.permissionSet.has(perm)
 
   /**
    * 判断是否拥有任意一个权限
    * @param arr 权限码数组
    */
-  const hasAnyPerm = (arr: string[]) => arr.some(p => perms.value.includes(p))
+  const hasAnyPerm = (arr: string[]) => arr.some(p => permissionStore.permissionSet.has(p))
 
   /**
    * 判断是否同时拥有所有权限
    * @param arr 权限码数组
    */
-  const hasAllPerms = (arr: string[]) => arr.every(p => perms.value.includes(p))
+  const hasAllPerms = (arr: string[]) => arr.every(p => permissionStore.permissionSet.has(p))
 
   return {
     userInfo,

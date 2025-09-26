@@ -1,5 +1,6 @@
 import type {Router} from "vue-router";
-import {useAppStore, useAuthStore} from "@/store";
+import {useAppStore, useAuthStore, usePermissionStore} from "@/store";
+import {message} from '@/utils/message'
 
 /**
  * 设置路由守卫
@@ -74,6 +75,36 @@ function createPermissionGuard(router: Router) {
         if (!loggedIn) {
             next({path: '/login', query: {redirect: to.fullPath}})
             return
+        }
+
+        if (import.meta.env.VITE_AUTH_MODE === 'dynamic') {
+            const permissionStore = usePermissionStore()
+            if (!permissionStore.isDynamicAdded) {
+                try {
+                    // 当首次进入受保护页面时，请求后端动态路由并注册到 vue-router 中
+                    const routes = await permissionStore.buildRoutes()
+                    routes.forEach(route => router.addRoute(route))
+                    next({...to, replace: true})
+                    return
+                } catch (error) {
+                    console.error('加载动态路由失败:', error)
+                    // 动态路由加载失败时兜底处理：提示、退出登录并回到登录页
+                    message.error('加载动态路由失败，请重新登录')
+                    await authStore.logout()
+                    next({path: '/login', query: {redirect: to.fullPath}})
+                    return
+                }
+            }
+        } else {
+            const permissionStore = usePermissionStore()
+            if (!permissionStore.perms.length) {
+                try {
+                    // 静态路由模式下仍需拉取一次权限点集合，供按钮级别校验使用
+                    await permissionStore.loadUserPermissions()
+                } catch (error) {
+                    console.error('加载权限失败:', error)
+                }
+            }
         }
 
         // 已登录状态，允许访问

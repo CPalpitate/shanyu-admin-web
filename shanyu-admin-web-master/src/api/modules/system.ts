@@ -169,6 +169,25 @@ export const systemApi = {
         return request.get<string[]>(`/system/role/${roleId}/permissions`)
     },
 
+    // ==================== 动态路由 & 权限 ====================
+
+    /**
+     * 查询当前用户可访问的动态路由树
+     * 后端会根据用户角色/权限返回完整的菜单结构
+     * 前端拿到数据后用于生成 vue-router 配置
+     */
+    getCurrentUserRoutes(): Promise<T.R<T.MenuRoute[]>> {
+        return request.get<T.MenuRoute[]>('/system/menu/routes')
+    },
+
+    /**
+     * 查询当前用户的按钮/动作权限编码集合
+     * 配合 Pinia 权限 store 缓存，驱动按钮级别的 v-if 控制
+     */
+    getCurrentUserPerms(): Promise<T.R<string[]>> {
+        return request.get<string[]>('/system/menu/perms')
+    },
+
     // ==================== 菜单管理 ====================
     // /**
     //  * 获取菜单树
